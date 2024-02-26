@@ -1,7 +1,19 @@
 
 def load_dimacs(file_name):
-    #file_name will be of the form "problem_name.txt"
-    ...
+    file = open(file_name, "r")
+    clauses_array = []
+    for line in file:
+        if line[0] == "p":
+            pass
+        else:
+            clauses  = line.split()
+            clauses.pop()
+            for i in range(len(clauses)):
+                clauses[i] = int(clauses[i])
+            clauses_array.append(clauses)
+    return clauses_array
+
+        
 
 
 def simple_sat_solve(clause_set):
@@ -90,3 +102,6 @@ def test():
         except:
             print("Failed problem " + str(problem))
     print("Finished tests")
+
+load_dimacs("sat.txt")
+test()
