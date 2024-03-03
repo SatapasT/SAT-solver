@@ -1,24 +1,47 @@
+import itertools
+import timeit
 
 def load_dimacs(file_name):
-    file = open(file_name, "r")
-    clauses_array = []
-    for line in file:
-        if line[0] == "p":
-            pass
-        else:
-            clauses  = line.split()
-            clauses.pop()
-            for i in range(len(clauses)):
-                clauses[i] = int(clauses[i])
-            clauses_array.append(clauses)
+    with open(file_name, "r") as file:
+        clauses_array = [
+            [int(clause) for clause in line.split()[:-1]]
+            for line in file if not line.startswith("p")
+        ]
     return clauses_array
-
-        
 
 
 def simple_sat_solve(clause_set):
-    ...
+    all_literals = list(set(abs(literal) for clause in clause_set for literal in clause))
 
+    assignments = [True, False]
+    
+    for truth_assignment in itertools.product(assignments, repeat=len(all_literals)):
+        assignment = dict(zip(all_literals, truth_assignment))
+        
+        clause_set_truth = []
+
+        for clause in clause_set:
+            clause_truth = False
+            for literal in clause:
+                if literal > 0 and assignment[literal] == True or literal < 0 and assignment[abs(literal)] == False:
+                    clause_truth = True
+                    break
+                
+            clause_set_truth.append(clause_truth)
+                    
+            
+            
+        if all(clause_set_truth):
+            answer = []
+            for i in all_literals:
+                if not assignment[i]:
+                    answer.append(-i)
+                else:
+                    answer.append(i)
+            return answer
+        
+    return False
+    
 
 def branching_sat_solve(clause_set,partial_assignment):
     ...
@@ -103,5 +126,7 @@ def test():
             print("Failed problem " + str(problem))
     print("Finished tests")
 
-load_dimacs("sat.txt")
 test()
+sat1 = [[1, 2], [-1, 3], [-2, -3]]
+print(simple_sat_solve(sat1))
+
