@@ -11,13 +11,17 @@ def load_dimacs(file_name):
 
 
 def simple_sat_solve(clause_set):
-    all_literals = list(set(abs(literal) for clause in clause_set for literal in clause))
-
-    assignments = [True, False]
     
-    for truth_assignment in itertools.product(assignments, repeat=len(all_literals)):
+    unique_literals = set()
+    for clause in clause_set:
+        for literal in clause:
+            unique_literals.add(abs(literal))
+
+    all_literals = list(unique_literals)
+
+    possible_assignment = [True, False]
+    for truth_assignment in itertools.product(possible_assignment, repeat=len(all_literals)):
         assignment = dict(zip(all_literals, truth_assignment))
-        
         clause_set_truth = []
 
         for clause in clause_set:
@@ -29,8 +33,6 @@ def simple_sat_solve(clause_set):
                 
             clause_set_truth.append(clause_truth)
                     
-            
-            
         if all(clause_set_truth):
             answer = []
             for i in all_literals:
@@ -48,7 +50,28 @@ def branching_sat_solve(clause_set,partial_assignment):
 
 
 def unit_propagate(clause_set):
-    ...
+    
+    unit_clauses = set() 
+    for clause in clause_set:
+        if len(clause) == 1:
+            unit_clauses.add(tuple(clause))
+
+    while unit_clauses:
+        unit = list(unit_clauses.pop())
+        clause_set.remove(unit)
+        #print(clause_set)
+
+
+        for clause in clause_set:
+            if unit in clause:
+                continue
+            elif -unit[0] in clause and len(clause) > 1:
+                clause.remove(-unit[0])
+            
+            if len(clause) == 1:
+                    unit_clauses.add(tuple(clause))
+                
+    return clause_set
 
 
 def dpll_sat_solve(clause_set,partial_assignment):
@@ -127,6 +150,9 @@ def test():
     print("Finished tests")
 
 test()
-sat1 = [[1, 2], [-1, 3], [-2, -3]]
+#sat1 = load_dimacs("8queens.txt")
+sat1 = [[1], [2], [-1,3], [3,-2]]
 print(simple_sat_solve(sat1))
+
+
 
