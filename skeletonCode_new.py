@@ -1,6 +1,8 @@
 import itertools
-import time
 import copy
+import random
+import time
+
 
 def load_dimacs(file_name):
     with open(file_name, "r") as file:
@@ -47,43 +49,30 @@ def simple_sat_solve(clause_set):
     
 
 def branching_sat_solve(clause_set, partial_assignment):
-    
     if isinstance(partial_assignment, list):
         temp_assignment = {}
-        iterable = partial_assignment if partial_assignment is not None else []
-        for literal in iterable:
-            if literal < 0:
-                temp_assignment[abs(literal)] = False
-            else:
-                temp_assignment[literal] = True
+        for literal in partial_assignment:
+            temp_assignment[abs(literal)] = literal > 0
         partial_assignment = temp_assignment
 
-    if len(partial_assignment) == 0:
-        if len(clause_set) == 0:
-            return False
+    if not clause_set:
+        return [i if partial_assignment[i] else -i for i in partial_assignment]
 
     if all_clauses_satisfy(clause_set, partial_assignment):
-        return partial_assignment
+        return [i if partial_assignment[i] else -i for i in partial_assignment]
 
-    variable = find_unassign_variable(clause_set, partial_assignment)
-    if not variable:
+    variable = find_unassigned_variable(clause_set, partial_assignment)
+    if variable is None: 
         return False
-    
+
     for value in [True, False]:
         new_partial_assignment = copy.deepcopy(partial_assignment)
         new_partial_assignment[variable] = value
-        result = branching_sat_solve(clause_set, new_partial_assignment)
-        if result:
-            answer = []
-            for i in result:
-                if not result[i]:
-                    answer.append(-i)
-                else:
-                    answer.append(i)
-            return answer
-    
-    return False
+        answer = branching_sat_solve(clause_set, new_partial_assignment)
+        if answer:
+            return answer  
 
+    return False
 
 def all_clauses_satisfy(clause_set,partial_assignment):
     for clause in clause_set:
@@ -101,15 +90,13 @@ def all_clauses_satisfy(clause_set,partial_assignment):
         
     return True
 
-
-def find_unassign_variable(clause_set,partial_assignment):
+def find_unassigned_variable(clause_set, partial_assignment):
     for clause in clause_set:
         for literal in clause:
             if abs(literal) not in partial_assignment:
                 return abs(literal)
-    return False
-    print(clause_set)
-    print(partial_assignment)
+    return None
+
 
 
 def unit_propagate(clause_set):
@@ -212,26 +199,9 @@ def test():
     print("Finished tests")
 
 test()
-sat1 = [[1],[1,-1],[-1,-2]]
-sat1 = load_dimacs("8queens.txt")
+sat1 = [[3, -1], [1, 1], [-4, 4], [2, -4, 4]]
+#sat1 = load_dimacs("8queens.txt")
 print(branching_sat_solve(sat1,[-2]))
-
-
-# Measure execution time of function2
-start_time = time.time()
-print(simple_sat_solve(sat1))
-end_time = time.time()
-time_1 = end_time - start_time
-
-start_time = time.time()
-print(branching_sat_solve(sat1,[]))
-end_time = time.time()
-time_2 = end_time - start_time
-
-
-
-print(f"Function branching took {time_1} seconds to execute.")
-print(f"Function simple took {time_2} seconds to execute.")
 
 
 
