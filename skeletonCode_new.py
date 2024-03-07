@@ -1,5 +1,6 @@
 import itertools
-import timeit
+import time
+import copy
 
 def load_dimacs(file_name):
     with open(file_name, "r") as file:
@@ -45,32 +46,95 @@ def simple_sat_solve(clause_set):
     return False
     
 
-def branching_sat_solve(clause_set,partial_assignment):
-    ...
+def branching_sat_solve(clause_set, partial_assignment):
+    
+    if isinstance(partial_assignment, list):
+        temp_assignment = {}
+        iterable = partial_assignment if partial_assignment is not None else []
+        for literal in iterable:
+            if literal < 0:
+                temp_assignment[abs(literal)] = False
+            else:
+                temp_assignment[literal] = True
+        partial_assignment = temp_assignment
+
+    if len(partial_assignment) == 0:
+        if len(clause_set) == 0:
+            return False
+
+    if all_clauses_satisfy(clause_set, partial_assignment):
+        return partial_assignment
+
+    variable = find_unassign_variable(clause_set, partial_assignment)
+    if not variable:
+        return False
+    
+    for value in [True, False]:
+        new_partial_assignment = copy.deepcopy(partial_assignment)
+        new_partial_assignment[variable] = value
+        result = branching_sat_solve(clause_set, new_partial_assignment)
+        if result:
+            answer = []
+            for i in result:
+                if not result[i]:
+                    answer.append(-i)
+                else:
+                    answer.append(i)
+            return answer
+    
+    return False
+
+
+def all_clauses_satisfy(clause_set,partial_assignment):
+    for clause in clause_set:
+        clause_satisfy = False
+        for literal in clause:
+            if literal in partial_assignment and partial_assignment[abs(literal)] == True:
+                clause_satisfy = True
+                break
+            elif -literal in partial_assignment and partial_assignment[abs(literal)] == False:
+                clause_satisfy = True
+                break
+        
+        if not clause_satisfy:
+            return False
+        
+    return True
+
+
+def find_unassign_variable(clause_set,partial_assignment):
+    for clause in clause_set:
+        for literal in clause:
+            if abs(literal) not in partial_assignment:
+                return abs(literal)
+    return False
+    print(clause_set)
+    print(partial_assignment)
 
 
 def unit_propagate(clause_set):
-    
-    unit_clauses = set() 
+    unit_clauses = set()
     for clause in clause_set:
         if len(clause) == 1:
             unit_clauses.add(tuple(clause))
 
     while unit_clauses:
         unit = list(unit_clauses.pop())
-        clause_set.remove(unit)
-        #print(clause_set)
-
-
+        new_clause_set = []
         for clause in clause_set:
-            if unit in clause:
-                continue
-            elif -unit[0] in clause and len(clause) > 1:
-                clause.remove(-unit[0])
-            
-            if len(clause) == 1:
-                    unit_clauses.add(tuple(clause))
-                
+            if unit[0] in clause:
+                continue 
+            elif -unit[0] in clause:
+                new_clause = [x for x in clause if x != -unit[0]] 
+                if len(new_clause) == 1:
+                    unit_clauses.add(tuple(new_clause))
+                elif len(new_clause) > 0:
+                    new_clause_set.append(new_clause)
+            else:
+                new_clause_set.append(clause)
+
+        clause_set = new_clause_set
+
     return clause_set
 
 
@@ -122,7 +186,6 @@ def test():
     except:
         print("branching_sat_solve did not work correctly an unsat instance")
 
-
     print("Testing unit_propagate")
     try:
         clause_set = [[1],[-1,2]]
@@ -131,7 +194,6 @@ def test():
         print("Test passed")
     except:
         print("unit_propagate did not work correctly")
-
 
     print("Testing DPLL") #Note, this requires load_dimacs to work correctly
     problem_names = ["sat.txt","unsat.txt"]
@@ -150,9 +212,27 @@ def test():
     print("Finished tests")
 
 test()
-#sat1 = load_dimacs("8queens.txt")
-sat1 = [[1], [2], [-1,3], [3,-2]]
+sat1 = [[1],[1,-1],[-1,-2]]
+sat1 = load_dimacs("8queens.txt")
+print(branching_sat_solve(sat1,[-2]))
+
+
+# Measure execution time of function2
+start_time = time.time()
 print(simple_sat_solve(sat1))
+end_time = time.time()
+time_1 = end_time - start_time
+
+start_time = time.time()
+print(branching_sat_solve(sat1,[]))
+end_time = time.time()
+time_2 = end_time - start_time
+
+
+
+print(f"Function branching took {time_1} seconds to execute.")
+print(f"Function simple took {time_2} seconds to execute.")
+
 
 
 
