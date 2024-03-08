@@ -20,16 +20,19 @@ def simple_sat_solve(clause_set):
             unique_literals.add(abs(literal))
 
     all_literals = list(unique_literals)
+    literals_to_indices = {}
+    for index, literal in enumerate(all_literals):
+        literals_to_indices[literal] = index
 
     possible_assignment = [True, False]
     for truth_assignment in itertools.product(possible_assignment, repeat=len(all_literals)):
-        assignment = dict(zip(all_literals, truth_assignment))
         clause_set_truth = []
 
         for clause in clause_set:
             clause_truth = False
             for literal in clause:
-                if literal > 0 and assignment[literal] == True or literal < 0 and assignment[abs(literal)] == False:
+                literal_index = literals_to_indices[abs(literal)]
+                if literal > 0 and truth_assignment[literal_index] == True or literal < 0 and not truth_assignment[literal_index]:
                     clause_truth = True
                     break
                 
@@ -37,85 +40,72 @@ def simple_sat_solve(clause_set):
                     
         if all(clause_set_truth):
             answer = []
-            for i in all_literals:
-                if not assignment[i]:
-                    answer.append(-i)
+            for i, literal in enumerate(all_literals):
+                if not truth_assignment[i]:
+                    answer.append(-literal)
                 else:
-                    answer.append(i)
+                    answer.append(literal)
             return answer
         
     return False
 
-def branching_sat_solve(clause_set, partial_assignment):
-    if isinstance(partial_assignment, list):
-        new_assignment = {}
-        for literal in partial_assignment:
-            new_assignment[abs(literal)] = literal > 0
-        partial_assignment = new_assignment
-    
-    if len(clause_set) == 0 and len(partial_assignment) == 0 :
-        return []
-    elif len(clause_set) == 0 and len(partial_assignment) > 0:
-        return False
+def branching_sat_solve(clause_set, partial_assignment, unique_literals=None):
 
-    if all_clauses_satisfy(clause_set, partial_assignment):
-
+    if unique_literals is None:
         unique_literals = set()
         for clause in clause_set:
             for literal in clause:
                 unique_literals.add(abs(literal))
-        
+    
+    if not clause_set:
         for literal in unique_literals:
-            if literal not in partial_assignment:
-                partial_assignment[literal] = True
+            if literal not in partial_assignment and -literal not in partial_assignment:
+                partial_assignment.append(literal)
+        return sorted(partial_assignment, key=abs)
 
-        result = []
-
-        for i in sorted(partial_assignment.keys()):
-            if partial_assignment.get(i, False):
-                result.append(i)
-            else:
-                result.append(-i)
-                
-        return result 
-
-    variable = find_unassigned_variable(clause_set, partial_assignment)
-    if variable is None:
-        return False
-
-    for value in [True, False]:
-        partial_assignment[variable] =  value
-        answer = branching_sat_solve(clause_set, partial_assignment)
-        if answer:
-            return answer
-        del partial_assignment[variable]
-
-    return False
-
-
-def all_clauses_satisfy(clause_set,partial_assignment):
     for clause in clause_set:
-        clause_satisfy = False
-        for literal in clause:
-            if literal in partial_assignment and partial_assignment[abs(literal)] == True:
-                clause_satisfy = True
-                break
-            elif -literal in partial_assignment and partial_assignment[abs(literal)] == False:
-                clause_satisfy = True
-                break
-        
-        if not clause_satisfy:
+        if not clause:
             return False
-        
-    return True
 
-
-def find_unassigned_variable(clause_set, partial_assignment):
     for clause in clause_set:
         for literal in clause:
-            if abs(literal) not in partial_assignment:
-                return abs(literal)
-    return None
+
+            if literal not in partial_assignment and -literal not in partial_assignment:
+                simplified_clause_set = try_literal(clause_set, literal)
+                if simplified_clause_set is not None:
+                    partial_assignment.append(literal)
+                    answer = branching_sat_solve(simplified_clause_set, partial_assignment, unique_literals)
+                    if answer:
+                        return answer
+
+                simplified_clause_set = try_literal(clause_set, -literal)
+                if simplified_clause_set is not None:
+                    partial_assignment.append(-literal)
+                    answer = branching_sat_solve(simplified_clause_set, partial_assignment, unique_literals)
+                    if answer:
+                        return answer
+                    
+                return False  
+            
+    return False 
+
+def try_literal(clause_set, literal):
+    new_clause_set = []
+    for clause in clause_set:
+        if literal in clause:
+            continue
+        if -literal in clause:
+            new_clause = []
+            for i in clause:
+                if i != -literal:
+                    new_clause.append(i)
+
+            if not new_clause:
+                return None  
+            new_clause_set.append(new_clause)
+        else:
+            new_clause_set.append(clause)
+    return new_clause_set
 
 
 def unit_propagate(clause_set):
@@ -145,32 +135,26 @@ def unit_propagate(clause_set):
 
 
 def dpll_sat_solve(clause_set, partial_assignment, unique_literals=None):
-
-    if isinstance(partial_assignment, list):
-        new_assignment = {}
-        for literal in partial_assignment:
-            new_assignment[abs(literal)] = literal > 0
-        partial_assignment = new_assignment
-    
     if unique_literals is None:
         unique_literals = set()
         for clause in clause_set:
             for literal in clause:
                 unique_literals.add(abs(literal))
     
-    if len(clause_set) == 0 and len(partial_assignment) == 0 :
-        return []
-    elif len(clause_set) == 0 and len(partial_assignment) > 0:
-        return False
+    if not clause_set:
+        for literal in unique_literals:
+            if literal not in partial_assignment and -literal not in partial_assignment:
+                partial_assignment.append(literal)
+        return sorted(partial_assignment, key=abs)
 
     unit_clauses = set()
     for clause in clause_set:
         if len(clause) == 1:
             unit_clauses.add(tuple(clause))
-
+    
     while unit_clauses:
         unit = list(unit_clauses.pop())
-        partial_assignment[abs(unit[0])] = unit[0] > 0
+        partial_assignment.append(unit[0])
         new_clause_set = []
         for clause in clause_set:
             if unit[0] in clause:
@@ -186,34 +170,31 @@ def dpll_sat_solve(clause_set, partial_assignment, unique_literals=None):
 
         clause_set = new_clause_set
 
-    if all_clauses_satisfy(clause_set, partial_assignment):
-        
-        for literal in unique_literals:
-            if literal not in partial_assignment:
-                partial_assignment[literal] = True
+    for clause in clause_set:
+        if not clause:
+            return False
 
-        result = []
+    for clause in clause_set:
+        for literal in clause:
 
-        for i in sorted(partial_assignment.keys()):
-            if partial_assignment.get(i, False):
-                result.append(i)
-            else:
-                result.append(-i)
-                
-        return result 
+            if literal not in partial_assignment and -literal not in partial_assignment:
+                simplified_clause_set = try_literal(clause_set, literal)
+                if simplified_clause_set is not None:
+                    partial_assignment.append(literal)
+                    answer = dpll_sat_solve(simplified_clause_set, partial_assignment, unique_literals)
+                    if answer:
+                        return answer
 
-    variable = find_unassigned_variable(clause_set, partial_assignment)
-    if variable is None:
-        return False
-
-    for value in [True, False]:
-        partial_assignment[variable] = value
-        answer = dpll_sat_solve(clause_set, partial_assignment,unique_literals)
-        if answer:
-            return answer
-        del partial_assignment[variable]
-
-    return False
+                simplified_clause_set = try_literal(clause_set, -literal)
+                if simplified_clause_set is not None:
+                    partial_assignment.append(-literal)
+                    answer = dpll_sat_solve(simplified_clause_set, partial_assignment, unique_literals)
+                    if answer:
+                        return answer
+                    
+                return False  
+            
+    return False 
 
 def test():
     print("Testing load_dimacs")
@@ -284,7 +265,7 @@ def test():
     print("Finished tests")
 
 test()
-clause_set = [[1],[3, -1], [1, 1], [-4, 4], [2, -4, 4],[2],[5],[-5,2,3],[-6],[6,1,2],[1,2,3,4,5,6,7,8,9],[-8],[-1,-2,-3,-4,-5,-6,-7,-8,-9]]
+clause_set = [[1],[3, -1], [1, 1], [-4, 4], [2, -4, 4],[2],[5],[-5,2,3],[-6],[6,1,2],[1,2,3,4,5,6,7,8,9],[-8]]
 #sat1 = load_dimacs("LNP-6.txt")
 #print(dpll_sat_solve(clause_set,[]))
 
