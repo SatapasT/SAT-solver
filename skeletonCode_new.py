@@ -40,11 +40,11 @@ def simple_sat_solve(clause_set):
                 
         if all(clause_set_truth):
             answer = []
-            for i in all_literals:
-                if not assignment[i]:
-                    answer.append(-i)
+            for literal in all_literals:
+                if not assignment[literal]:
+                    answer.append(-literal)
                 else:
-                    answer.append(i)
+                    answer.append(literal)
             return answer
     
     return False
@@ -167,6 +167,8 @@ def dpll_sat_solve(clause_set, partial_assignment, unique_literals=None):
     while unit_clauses:
         unit = unit_clauses.pop()
         new_clause_set = []
+        partial_assignment.append(unit)
+        
         for clause in clause_set:
             if unit in clause:
                 continue  
@@ -183,6 +185,7 @@ def dpll_sat_solve(clause_set, partial_assignment, unique_literals=None):
                     new_unit = new_clause[0]
                     if -new_unit in unit_clauses:
                         return False 
+    
                     unit_clauses.add(new_unit)
                     
                 else:
@@ -190,6 +193,7 @@ def dpll_sat_solve(clause_set, partial_assignment, unique_literals=None):
 
             else:
                 new_clause_set.append(clause)
+        
         clause_set = new_clause_set
         
     if not clause_set:
@@ -303,8 +307,8 @@ def test():
 test()
 #clause_set = [[1],[3, -1], [1, 1], [-4, 4], [2, -4, 4],[2],[5],[-5,2,3],[-6],[6,1,2],[1,2,3,4,5,6,7,8,9],[-8]]
 
-clause_set = load_dimacs("PHP-5-4.txt")
-#clause_set = [[1, -2], [-1, 2], [-1, -2], [1, 2]]
+clause_set = load_dimacs("LNP-6.txt")
+#clause_set = [[1],[1,-1],[-1,-2]]
 #print(dpll_sat_solve(clause_set,[]))
 
 start_time = time.time()
@@ -327,12 +331,17 @@ print("dpll_sat_solve runtime: ", dpll_sat_solve_runtime,dpll_sat_solve_result )
 def validate_solution(clause_set, solution):
     if not solution:
         return True
+    clause_set_truth = []
     for clause in clause_set:
-        for literal in clause:
-            if (literal not in solution) and (-literal not in solution):
-                return False
+        clause_truth = []
+        for literal in solution:
+            if literal in clause:
+                clause_truth.append(True)
+            else:
+                clause_truth.append(False)
+        clause_set_truth.append(any(clause_truth))
 
-    return True
+    return all(clause_set_truth)
 
 print(validate_solution(clause_set,branching_sat_result))
 print(validate_solution(clause_set,dpll_sat_solve_result))
