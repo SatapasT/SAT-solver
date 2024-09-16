@@ -281,7 +281,7 @@ def test():
     except:
         print("unit_propagate did not work correctly")
 
-    print("Testing DPLL") #Note, this requires load_dimacs to work correctly
+    print("Testing DPLL")
     problem_names = ["sat.txt","unsat.txt"]
     for problem in problem_names:
         try:
